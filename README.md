@@ -40,6 +40,18 @@ know about
 [Weather Bar](https://github.com/manifestinteractive/weather-bar-app)
 back then, but well - mine app is simpler.
 
+**Q. How do I setup the app?** 
+
+A. Currently, setup is done via text file you can open using
+"Preferences" button. You have to get your own API key from
+OpenWeatherMap and find out your city ID. App will warn you (and not
+work) if those settings are not initialized.
+
+**Q. Why do I have to set my own API key?** 
+
+A. Free tier of OpenWeatherMap API only allows 60 requests per minute.
+While I don't think that this app will ever get so much attention, it
+would be unwise to provide API key here, in an open form.
 
 ### License and copyright
 

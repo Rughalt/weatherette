@@ -25,7 +25,6 @@ from setuptools import setup
 
 APP = ['weatherette.py']
 DATA_FILES = ['app_icon.png',
-              'icon.png',
               ('icons', glob('icons/*.png'))]
 OPTIONS = {
     'argv_emulation': True,
