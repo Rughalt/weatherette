@@ -27,8 +27,10 @@ import rumps
 import os
 import json
 import logging
+import subprocess
 from appscript import *
 from rumps import separator, MenuItem
+
 
 configs = {}
 configs_data = {}
@@ -54,11 +56,10 @@ logging.basicConfig(filename=os.path.expanduser('~')+'/.weatherette/'+'wallpaper
 
 
 
-
 class WeatheretteApp(rumps.App):
-    apiKey = "5bc0fa762d98fb40f13a93a250b7f52a"
-    cityId = '756135'
-    cityName = 'Warsaw,pl'
+    apiKey = ''
+    cityId = ''
+    cityName = 'No city set'
     units = 'metric'
 
     def __init__(self):
@@ -71,11 +72,12 @@ class WeatheretteApp(rumps.App):
             self.cityId = config['cityId']
             self.cityName = config['cityName']
             self.units = config['units']
+        print(self.apiKey)
+        self.save_config()
 
-
-        self.menu = ['Weather description','Wind description',separator,"Forecast (next 9 hours)", "Forecast Data 1", "Forecast Data 2", "Forecast Data 3",separator,"City",separator,"Display",separator,"About Weatherette"]
-        self.icon = 'icon.png'
-        self.title = '30000'
+        self.menu = ['Weather description','Wind description',separator,"Forecast (next 9 hours)", "Forecast Data 1", "Forecast Data 2", "Forecast Data 3",separator,"City",separator,"Display","Preferences",separator,"About Weatherette"]
+        self.icon = 'icons/01d.png'
+        self.title = 'No data'
         self.template = True
 
         title_button = self.menu['City']
@@ -83,6 +85,7 @@ class WeatheretteApp(rumps.App):
 
         self.menu['Display'].add(MenuItem('Metric', callback=lambda sender: self.set_region('metric',sender)))
         self.menu['Display'].add(MenuItem('Imperial', callback=lambda sender: self.set_region('imperial',sender)))
+        self.menu['City'].add(MenuItem('Set city', callback=lambda sender: self.set_city(sender)))
 
         logging.info('Starting app')
 
@@ -95,32 +98,53 @@ class WeatheretteApp(rumps.App):
 
     @rumps.timer(600)
     def update_weather(self, _):
-        url = base_weather_url % (self.cityId, self.apiKey, self.units)
-        req = urllib.request.Request(url)
-        response = urllib.request.urlopen(req)
-        data = json.loads(response.read())
-        self.icon = 'icons/'+data['weather'][0]['icon']+'.png'
-        title_button = self.menu['Weather description']
-        title_button.title = data['weather'][0]['main'] + " (" + data['weather'][0]['description'] + ")"
-        title_button = self.menu['Wind description']
-        title_button.title = 'Wind: %s%s %s' % (data['wind']['speed'],wind_speed_text[self.units], degree_to_direction(data['wind']['speed']))
-        title_button = self.menu['City']
-        title_button.title = data['name']
-        self.title = temp_base_text[self.units] % data['main']['temp']
+        if self.apiKey == '' or self.cityId == '':
+            result = rumps.alert('No API key or City id', 'Open Preferences to set API key or City id. You can get both from OpenWeatherMap.com. After you set them in preferences, restart the app!', ok="Open Preferences", other='Go to OpenWeatherMap', icon_path='app_icon.png')
+            if result == 1:
+                subprocess.Popen(["open", "-t", home_dir + '/config.json'])
+            else:
+                subprocess.Popen(["open", 'https://openweathermap.com'])
+            return
+        try:
+            url = base_weather_url % (self.cityId, self.apiKey, self.units)
+            print(url)
+            req = urllib.request.Request(url)
+            response = urllib.request.urlopen(req)
+            data = json.loads(response.read())
+            self.icon = 'icons/'+data['weather'][0]['icon']+'.png'
+            title_button = self.menu['Weather description']
+            title_button.title = data['weather'][0]['main'] + " (" + data['weather'][0]['description'] + ")"
+            title_button = self.menu['Wind description']
+            title_button.title = 'Wind: %s%s %s' % (data['wind']['speed'],wind_speed_text[self.units], degree_to_direction(data['wind']['speed']))
+            title_button = self.menu['City']
+            title_button.title = data['name']
+            self.title = temp_base_text[self.units] % data['main']['temp']
 
-        url = forecast_url % (self.cityId, self.apiKey, self.units)
-        req = urllib.request.Request(url)
-        response = urllib.request.urlopen(req)
-        data = json.loads(response.read())
-        forecast_id = 0
-        for forecast in data['list'][:3]:
-            forecast_id += 1
-            forecast_button = self.menu['Forecast Data %s' % forecast_id]
-            forecast_button.icon = 'icons/'+forecast['weather'][0]['icon']+'.png'
-            forecast_button.template = True
-            forecasted_temp = temp_base_text[self.units] % forecast['main']['temp'] + " " + forecast['weather'][0]['main'] + " (" + forecast['weather'][0]['description'] + ")"
-            forecast_button.title = forecasted_temp
+            url = forecast_url % (self.cityId, self.apiKey, self.units)
+            req = urllib.request.Request(url)
+            response = urllib.request.urlopen(req)
+            data = json.loads(response.read())
+            forecast_id = 0
+            for forecast in data['list'][:3]:
+                forecast_id += 1
+                forecast_button = self.menu['Forecast Data %s' % forecast_id]
+                forecast_button.icon = 'icons/'+forecast['weather'][0]['icon']+'.png'
+                forecast_button.template = True
+                forecasted_temp = temp_base_text[self.units] % forecast['main']['temp'] + " " + forecast['weather'][0]['main'] + " (" + forecast['weather'][0]['description'] + ")"
+                forecast_button.title = forecasted_temp
+        except:
+            result = rumps.alert('Problem with accessing OpenWeatherMap',
+                                 'Weatherette had problem with connecting OpenWeatherMap. Check if you API key is correct and the site is online!',
+                                 ok="Close", other='Go to OpenWeatherMap', icon_path='app_icon.png')
+
         pass
+
+    @rumps.notifications
+    def notification_center(info):
+        print('a')
+        if 'preferences' in info:
+            subprocess.Popen(["open", "-t", home_dir + '/config.json'])
+
 
     def set_region(self,name,menu):
         self.units = name
@@ -135,6 +159,13 @@ class WeatheretteApp(rumps.App):
 
         logging.info('Saved configuration data')
         pass
+
+    @rumps.clicked("Preferences")
+    def set_city(self, _):
+        subprocess.Popen(["open", "-t", home_dir + '/config.json'])
+
+
+
 
 def degree_to_direction(degrees):
     dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
