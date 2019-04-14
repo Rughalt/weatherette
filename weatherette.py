@@ -85,7 +85,6 @@ class WeatheretteApp(rumps.App):
 
         self.menu['Display'].add(MenuItem('Metric', callback=lambda sender: self.set_region('metric',sender)))
         self.menu['Display'].add(MenuItem('Imperial', callback=lambda sender: self.set_region('imperial',sender)))
-        self.menu['City'].add(MenuItem('Set city', callback=lambda sender: self.set_city(sender)))
 
         logging.info('Starting app')
 
