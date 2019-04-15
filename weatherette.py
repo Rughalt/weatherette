@@ -35,8 +35,8 @@ from rumps import separator, MenuItem
 configs = {}
 configs_data = {}
 home_dir = os.path.expanduser('~')+'/.weatherette'
-base_weather_url = "https://api.openweathermap.org/data/2.5/weather?id=%s&appid=%s&units=%s"
-forecast_url = "https://api.openweathermap.org/data/2.5/forecast?id=%s&appid=%s&units=%s"
+base_weather_url = "http://api.openweathermap.org/data/2.5/weather?id=%s&appid=%s&units=%s"
+forecast_url = "http://api.openweathermap.org/data/2.5/forecast?id=%s&appid=%s&units=%s"
 
 temp_base_text = {}
 temp_base_text['metric'] = '%d℃'
@@ -51,7 +51,7 @@ rumps.debug_mode(True)
 if not os.path.exists(home_dir):
     os.makedirs(home_dir)
 
-logging.basicConfig(filename=os.path.expanduser('~')+'/.weatherette/'+'wallpaper.log',level=logging.DEBUG,format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename=os.path.expanduser('~')+'/.weatherette/'+'app.log',level=logging.DEBUG,format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 
 
@@ -72,7 +72,6 @@ class WeatheretteApp(rumps.App):
             self.cityId = config['cityId']
             self.cityName = config['cityName']
             self.units = config['units']
-        print(self.apiKey)
         self.save_config()
 
         self.menu = ['Weather description','Wind description',separator,"Forecast (next 9 hours)", "Forecast Data 1", "Forecast Data 2", "Forecast Data 3",separator,"City",separator,"Display","Preferences",separator,"About Weatherette"]
@@ -97,6 +96,9 @@ class WeatheretteApp(rumps.App):
 
     @rumps.timer(600)
     def update_weather(self, _):
+        logging.info('Current apiKey and cityId: %s,%s' % (self.apiKey, self.cityId))
+        url = base_weather_url % (self.cityId, self.apiKey, self.units)
+        logging.info(url)
         if self.apiKey == '' or self.cityId == '':
             result = rumps.alert('No API key or City id', 'Open Preferences to set API key or City id. You can get both from OpenWeatherMap.com. After you set them in preferences, restart the app!', ok="Open Preferences", other='Go to OpenWeatherMap', icon_path='app_icon.png')
             if result == 1:
@@ -105,8 +107,6 @@ class WeatheretteApp(rumps.App):
                 subprocess.Popen(["open", 'https://openweathermap.com'])
             return
         try:
-            url = base_weather_url % (self.cityId, self.apiKey, self.units)
-            print(url)
             req = urllib.request.Request(url)
             response = urllib.request.urlopen(req)
             data = json.loads(response.read())
@@ -131,10 +131,11 @@ class WeatheretteApp(rumps.App):
                 forecast_button.template = True
                 forecasted_temp = temp_base_text[self.units] % forecast['main']['temp'] + " " + forecast['weather'][0]['main'] + " (" + forecast['weather'][0]['description'] + ")"
                 forecast_button.title = forecasted_temp
-        except:
+        except Exception as e:
             result = rumps.alert('Problem with accessing OpenWeatherMap',
                                  'Weatherette had problem with connecting OpenWeatherMap. Check if you API key is correct and the site is online!',
                                  ok="Close", other='Go to OpenWeatherMap', icon_path='app_icon.png')
+            logging.exception('message')
 
         pass
 
